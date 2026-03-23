@@ -130,7 +130,21 @@ textarea.svc-input{resize:none;min-height:52px;line-height:1.45}
 #ptop span{font-size:10px;color:#3a3a3a}
 
 /* ── PDF PAGES ── */
-.page{width:794px;background:#fff;color:#111;box-shadow:0 12px 70px rgba(0,0,0,.65),0 2px 12px rgba(0,0,0,.3);position:relative;overflow:hidden;font-family:'Barlow',sans-serif;flex-shrink:0;page-break-after:always}
+/* A4 exacto: 210mm × 297mm @ 96 dpi = 794 × 1122 px */
+.page{
+  width:794px;
+  height:1122px;
+  min-height:1122px;
+  max-height:1122px;
+  overflow:hidden;
+  background:#fff;color:#111;
+  box-shadow:0 12px 70px rgba(0,0,0,.65),0 2px 12px rgba(0,0,0,.3);
+  position:relative;
+  font-family:'Barlow',sans-serif;
+  flex-shrink:0;
+  page-break-after:always;
+  box-sizing:border-box;
+}
 
 /* cover */
 .cover-head{background:linear-gradient(135deg,#1e1e1e 0%,#111 55%,#1a0707 100%);height:226px;position:relative;padding:32px 50px 0;overflow:hidden}
@@ -1226,23 +1240,31 @@ function closePrevia() {
 }
 
 function scaleModalPages() {
-  const wrap   = document.getElementById('modal-pages-wrap');
+  const wrap = document.getElementById('modal-pages-wrap');
   if (!wrap) return;
 
-  // Largura disponível menos padding
-  const avail  = Math.min(wrap.clientWidth - 40, window.innerWidth - 40);
-  const scale  = Math.min(1, avail / 794);
-  const scaledH = Math.round(1122 * scale);
+  // Disponível = menor entre: largura do modal menos padding, ou altura da viewport menos top bar
+  const availW  = wrap.clientWidth - 40;
+  const availH  = window.innerHeight - 70 - 48; // desconta top bar + padding
+  const scaleW  = availW / 794;
+  const scaleH  = availH / 1122;
+  const scale   = Math.min(1, scaleW, scaleH);
+
+  const frameW  = Math.round(794  * scale);
+  const frameH  = Math.round(1122 * scale);
 
   wrap.querySelectorAll('.modal-page-frame').forEach(frame => {
-    frame.style.width        = `${Math.round(794 * scale)}px`;
-    frame.style.height       = `${scaledH}px`;
-    frame.style.overflow     = 'hidden';
+    frame.style.width    = `${frameW}px`;
+    frame.style.height   = `${frameH}px`;
+    frame.style.overflow = 'hidden';
+    frame.style.flexShrink = '0';
 
     const pg = frame.querySelector('.page');
     if (pg) {
       pg.style.transform       = `scale(${scale})`;
       pg.style.transformOrigin = 'top left';
+      pg.style.width           = '794px';
+      pg.style.height          = '1122px';
       pg.style.marginBottom    = '0';
     }
   });
@@ -1272,10 +1294,13 @@ async function exportPDF() {
 
   const target = document.getElementById('pdf-target');
 
-  // 1. Remove qualquer transform de escala mobile
+  // 1. Remove transforms e força dimensões reais A4 para captura fiel
   target.querySelectorAll('.page').forEach(p => {
-    p.style.transform = '';
-    p.style.marginBottom = '';
+    p.style.transform       = '';
+    p.style.transformOrigin = '';
+    p.style.marginBottom    = '0';
+    p.style.width           = '794px';
+    p.style.height          = '1122px';
   });
 
   // 2. Esconde guias visuais durante a captura
@@ -1324,17 +1349,37 @@ async function exportPDF() {
 }
 
 function scalePages() {
-  if (window.innerWidth > 720) {
-    document.querySelectorAll('#pdf-target .page').forEach(p => { p.style.transform = ''; p.style.marginBottom = '20px'; });
-    return;
-  }
-  const pw = document.getElementById('preview').clientWidth - 16;
-  const scale = Math.min(1, pw / 794);
+  const preview = document.getElementById('preview');
+  if (!preview) return;
+
+  // Espaço disponível (largura do preview menos padding)
+  const availW = preview.clientWidth - 40;
+  const scale  = Math.min(1, availW / 794);
+
+  // Altura real da página após scale (A4 = 1122px)
+  const scaledH = Math.round(1122 * scale);
+
   document.querySelectorAll('#pdf-target .page').forEach(p => {
-    p.style.transform = `scale(${scale})`;
-    p.style.transformOrigin = 'top center';
-    p.style.marginBottom = `-${794 * (1 - scale) * 1.415}px`;
+    if (scale >= 1) {
+      // Cabe sem escalar — mostra 1:1
+      p.style.transform       = '';
+      p.style.marginBottom    = '20px';
+      p.style.width           = '';
+    } else {
+      // Escala proporcional — mantém A4 exato
+      p.style.transform       = `scale(${scale})`;
+      p.style.transformOrigin = 'top left';
+      p.style.marginBottom    = `${scaledH - 1122 + 20}px`; // compensa o espaço "perdido"
+      p.style.width           = '794px'; // mantém largura original para scale funcionar
+    }
   });
+
+  // Centraliza o pdf-target na área disponível
+  const target = document.getElementById('pdf-target');
+  if (target) {
+    target.style.marginLeft  = scale >= 1 ? 'auto' : '0';
+    target.style.marginRight = scale >= 1 ? 'auto' : '0';
+  }
 }
 
 // resize já tratado acima no listener unificado
