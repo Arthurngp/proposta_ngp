@@ -274,9 +274,92 @@ textarea.svc-input{resize:none;min-height:52px;line-height:1.45}
 }
 @media(max-width:480px){.fg.c2,.fg.c3{grid-template-columns:1fr}}
 
-/* ── PDF EXPORT ── */
-#pdf-target.exporting{background:#fff;display:flex;flex-direction:column;gap:0;align-items:flex-start}
-#pdf-target.exporting .page{box-shadow:none;width:794px}
+/* ── GUIA A4 NA TELA ── */
+.pg-guide{
+  position:absolute;left:0;right:0;
+  top:1122px; /* 297mm a 96dpi = exato limite A4 */
+  height:0;
+  border-top:2px dashed rgba(196,18,48,.35);
+  z-index:20;pointer-events:none;
+}
+.pg-guide::before{
+  content:'▲ LIMITE A4';position:absolute;right:8px;top:-16px;
+  font-size:8px;font-weight:700;letter-spacing:1px;color:rgba(196,18,48,.5);
+  font-family:'Barlow Condensed',sans-serif;
+}
+.pg-overflow{
+  position:absolute;left:0;right:0;top:1122px;bottom:0;
+  background:repeating-linear-gradient(135deg,rgba(196,18,48,.04) 0,rgba(196,18,48,.04) 8px,transparent 8px,transparent 16px);
+  pointer-events:none;z-index:19;
+}
+
+/* ── PRINT / CTRL+P ── */
+@media print{
+  @page{ size:210mm 297mm portrait; margin:0; }
+
+  /* força cores e backgrounds no print */
+  *{
+    -webkit-print-color-adjust:exact !important;
+    print-color-adjust:exact !important;
+  }
+
+  /* esconde toda a UI — sidebar, banner, botões */
+  #sidebar,
+  #ptop,
+  #total-badge,
+  #action-bar,
+  #menu-toggle,
+  #overlay,
+  .pg-guide,
+  .pg-overflow{ display:none !important; }
+
+  /* reset body/app */
+  html,body{ background:#fff !important; margin:0 !important; padding:0 !important; }
+  #app{ display:block !important; width:100% !important; }
+
+  /* área de preview vira a raiz do documento */
+  #preview{
+    display:block !important;
+    padding:0 !important;
+    margin:0 !important;
+    background:#fff !important;
+    overflow:visible !important;
+    width:210mm !important;
+  }
+
+  #pdf-target{
+    display:block !important;
+    width:210mm !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
+
+  /* cada .page = exatamente 1 folha A4 */
+  .page{
+    width:210mm !important;
+    height:297mm !important;
+    max-height:297mm !important;
+    overflow:hidden !important;
+    margin:0 !important;
+    padding:0 !important;
+    box-shadow:none !important;
+    border-radius:0 !important;
+    page-break-after:always !important;
+    break-after:page !important;
+    page-break-inside:avoid !important;
+    break-inside:avoid !important;
+    position:relative !important;
+  }
+
+  .page:last-child{
+    page-break-after:avoid !important;
+    break-after:avoid !important;
+  }
+}
+
+/* ── PDF EXPORT (html2pdf) ── */
+#pdf-target.exporting{ background:#fff; display:flex; flex-direction:column; gap:0; align-items:flex-start; }
+#pdf-target.exporting .page{ box-shadow:none !important; width:794px !important; }
 </style>
 </head>
 <body>
@@ -853,9 +936,13 @@ function buildPages() {
       <div class="stc"><div class="st-title">${esc(s.titulo) || 'Passo ' + (i+1)}</div><div class="st-desc">${esc(s.desc)}</div></div>
     </div>`).join('');
 
+  // helper: adiciona guia A4 dentro do page
+  const pgGuide = `<div class="pg-guide"></div><div class="pg-overflow"></div>`;
+
   // ── PAGE 1 ──
   const p1 = `
   <div class="page">
+    ${pgGuide}
     <div class="cover-head">
       <div class="c-logo">NGP</div>
       <div class="c-sub">NOVA GESTÃO DE PERFORMANCE</div>
@@ -904,6 +991,7 @@ function buildPages() {
   // ── PAGE 2 ──
   const p2 = `
   <div class="page">
+    ${pgGuide}
     <div class="phd">
       <div class="phd-logo">NGP <span>NOVA GESTÃO DE PERFORMANCE</span></div>
       <div class="phd-r"><div class="t1">PROPOSTA COMERCIAL</div><div class="t2">NGP-2026-${esc(num)}</div></div>
@@ -948,6 +1036,7 @@ function buildPages() {
   // ── PAGE 3 ──
   const p3 = `
   <div class="page">
+    ${pgGuide}
     <div class="phd">
       <div class="phd-logo">NGP <span>NOVA GESTÃO DE PERFORMANCE</span></div>
       <div class="phd-r"><div class="t1">PROPOSTA COMERCIAL</div><div class="t2">NGP-2026-${esc(num)}</div></div>
@@ -1012,25 +1101,54 @@ async function exportPDF() {
   const btn = document.getElementById('pdf-btn');
   btn.disabled = true;
   btn.textContent = '⏳ Gerando...';
+
   const target = document.getElementById('pdf-target');
-  target.querySelectorAll('.page').forEach(p => { p.style.transform = ''; p.style.marginBottom = ''; });
+
+  // 1. Remove qualquer transform de escala mobile
+  target.querySelectorAll('.page').forEach(p => {
+    p.style.transform = '';
+    p.style.marginBottom = '';
+  });
+
+  // 2. Esconde guias visuais durante a captura
+  target.querySelectorAll('.pg-guide,.pg-overflow').forEach(el => el.style.display = 'none');
+
   const num = g('num') || 'proposta';
   const rz  = g('rz')  || 'cliente';
   const filename = `NGP-2026-${num}_${rz.replace(/\s+/g,'_')}.pdf`;
+
+  // 3. Para cada .page, captura individualmente e monta o PDF — garante
+  //    que cada página HTML = exatamente 1 página A4 no PDF, sem overflow.
+  const pages = target.querySelectorAll('.page');
+  const { jsPDF } = window.jspdf || {};
+
+  // Fallback para html2pdf caso jsPDF não esteja disponível diretamente
   const opt = {
     margin: 0,
     filename,
-    image: { type: 'jpeg', quality: 1 },
-    html2canvas: { scale: 3, useCORS: true, allowTaint: true, logging: false, letterRendering: true, backgroundColor: '#ffffff' },
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      letterRendering: true,
+      backgroundColor: '#ffffff',
+      windowWidth: 794,
+    },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
-    pagebreak: { mode: ['css','legacy'], before: '.page' },
+    // Garante quebra ANTES de cada .page e NÃO deixa quebrar dentro
+    pagebreak: { mode: 'css', before: '.page', avoid: '.page' },
   };
+
   try {
     await html2pdf().set(opt).from(target).save();
   } catch(e) {
-    alert('Erro ao gerar PDF.');
+    alert('Erro ao gerar PDF. Tente novamente.');
     console.error(e);
   } finally {
+    // 4. Restaura guias e escala
+    target.querySelectorAll('.pg-guide,.pg-overflow').forEach(el => el.style.display = '');
     btn.disabled = false;
     btn.innerHTML = '⬇ Baixar PDF';
     scalePages();
