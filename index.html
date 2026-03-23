@@ -205,6 +205,9 @@ textarea.svc-input{resize:none;min-height:52px;line-height:1.45}
 .di-q{font-size:10px;color:#555;flex:1}
 .di-a{font-size:10px;color:#111;font-weight:600;text-align:right;max-width:160px}
 
+/* FIX: evita que a seção de serviços quebre no meio entre páginas */
+.ps{ page-break-inside:avoid; break-inside:avoid; }
+
 /* service table */
 .st{width:100%;border-collapse:collapse}
 .st thead tr{background:linear-gradient(90deg,#1a1a1a 0%,#111 100%)}
@@ -222,9 +225,16 @@ textarea.svc-input{resize:none;min-height:52px;line-height:1.45}
 .st-val-cell{padding:10px 12px;text-align:right;width:140px}
 .st-val-price{font-size:12px;font-weight:700;color:#111;font-family:'Barlow Condensed',sans-serif;white-space:nowrap}
 .st-total{background:linear-gradient(90deg,#1e1e1e 0%,#111 100%)!important}
-.st-total td{padding:10px 12px;border:none!important;background:none!important}
+.st-total td{padding:10px 12px;border:none!important;background:none!important;vertical-align:middle}
 .st-total .tot-label{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:13px;color:#e8e8e8;letter-spacing:.5px}
-.st-total .tot-val{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:16px;text-align:right;background:linear-gradient(135deg,#e01535 0%,#C41230 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+/* FIX: valor centralizado verticalmente na faixa preta + texto legível */
+.st-total .tot-val{
+  display:block;
+  font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:17px;
+  text-align:right;
+  background:linear-gradient(135deg,#ff4060 0%,#e01535 50%,#C41230 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
 
 /* scope detail box */
 .scope-box{background:linear-gradient(135deg,#f9f9f9,#f3f3f3);border-radius:6px;padding:12px 14px;border-left:3px solid transparent;border-image:linear-gradient(to bottom,#1a4fa0,#0f3270) 1;margin-top:14px}
@@ -287,8 +297,9 @@ textarea.svc-input{resize:none;min-height:52px;line-height:1.45}
 /* page header p2/p3 — flex-shrink:0 altura fixa */
 .phd{background:linear-gradient(90deg,#1e1e1e 0%,#131313 100%);padding:16px 46px;display:flex;align-items:center;justify-content:space-between;border-bottom:0;position:relative;flex-shrink:0}
 .phd::after{content:'';position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#8B0A1F 0%,#C41230 40%,#e01535 70%,#C41230 100%)}
-.phd-logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;color:#C41230;letter-spacing:-1px}
-.phd-logo span{font-size:9px;font-weight:600;color:rgba(255,255,255,.28);letter-spacing:2px;font-family:'Barlow',sans-serif;text-transform:uppercase;margin-left:5px}
+/* FIX: removido letter-spacing:-1px que clipava o "N" de NOVA → "OVA GESTÃO" */
+.phd-logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;color:#C41230;letter-spacing:0;overflow:visible}
+.phd-logo span{font-size:9px;font-weight:600;color:rgba(255,255,255,.28);letter-spacing:2px;font-family:'Barlow',sans-serif;text-transform:uppercase;margin-left:6px}
 .phd-r{text-align:right}
 .phd-r .t1{font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#555}
 .phd-r .t2{font-size:11px;font-weight:700;color:#ddd;font-family:'Barlow Condensed',sans-serif}
@@ -756,6 +767,24 @@ const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>
 const v = (s, fb) => s ? esc(s) : `<span class="em">${fb}</span>`;
 const fmtDate = d => { if(!d) return '—'; const[y,m,day]=d.split('-'); return`${day}/${m}/${y}`; };
 
+// FIX: validade mostra "15 dias (válido até DD/MM/AAAA)" com data calculada
+function fmtValidade(emissaoStr, diasStr) {
+  const dias = parseInt(diasStr, 10);
+  if (!emissaoStr || isNaN(dias)) return diasStr ? `${diasStr} dias` : '—';
+  const base = new Date(emissaoStr + 'T12:00:00');
+  base.setDate(base.getDate() + dias);
+  const dd = String(base.getDate()).padStart(2,'0');
+  const mm = String(base.getMonth()+1).padStart(2,'0');
+  const yy = base.getFullYear();
+  return `${dias} dias — válido até ${dd}/${mm}/${yy}`;
+}
+
+// FIX: onboarding com label correto (sem "— dias úteis" quando vazio)
+function fmtOnb(onbVal, label) {
+  if (!onbVal) return '—';
+  return `${onbVal} dias úteis`;
+}
+
 function isUnico() { return ['site','lp'].includes(projTipo); }
 
 function getValLabel() { return isUnico() ? 'Valor Total' : 'Valor Mensal'; }
@@ -1018,12 +1047,18 @@ function buildPages() {
   const scHost  = g('sc-host');
   const scExtra = g('sc-extra');
 
-  const unico = isUnico();
+  const unico      = isUnico();
   const valColLabel = getValLabel();
-  const totalLabel = getTotalLabel();
-  const tipoBadge = getTipoBadge();
-  const prazoLabel = unico ? 'Prazo de Entrega' : 'Prazo de Contrato';
-  const onbLabel = unico ? 'Kickoff' : 'Onboarding';
+  const totalLabel  = getTotalLabel();
+  const tipoBadge   = getTipoBadge();
+  const prazoLabel  = unico ? 'Prazo de Entrega' : 'Prazo de Contrato';
+  const onbLabel    = unico ? 'Kickoff' : 'Onboarding';
+  // FIX: total de páginas dinâmico
+  const totalPags   = 3;
+  // FIX: validade com data calculada automaticamente
+  const validadeStr = fmtValidade(g('dt'), g('val'));
+  // FIX: onboarding sem "— dias úteis" quando campo vazio
+  const onbStr      = fmtOnb(onb, onbLabel);
 
   const svcRows = svcs.map((s,i) => `
     <tr>
@@ -1071,7 +1106,7 @@ function buildPages() {
       <div class="c-meta">
         <div class="c-mi"><div class="lbl">Nº</div><div class="val">NGP-2026-${esc(num)}</div></div>
         <div class="c-mi"><div class="lbl">Emissão</div><div class="val">${data}</div></div>
-        <div class="c-mi"><div class="lbl">Validade</div><div class="val">${esc(val)} dias</div></div>
+        <div class="c-mi"><div class="lbl">Validade</div><div class="val">${validadeStr}</div></div>
         <div class="c-mi"><div class="lbl">Responsável</div><div class="val">${esc(resp)}</div></div>
       </div>
       <div class="cover-bar"></div>
@@ -1106,7 +1141,7 @@ function buildPages() {
           .map(([q,a])=>`<div class="di"><div class="di-dot"></div><div class="di-q">${q}</div><div class="di-a">${v(a,'—')}</div></div>`).join('')}
       </div>
     </div>
-    <div class="pft"><span>Nova Gestão de Performance | ${esc(ns)}</span><span>Página 1 de 3</span></div>
+    <div class="pft"><span>Nova Gestão de Performance | ${esc(ns)}</span><span>Página 1 de ${totalPags}</span></div>
   </div>`;
 
   // ── PAGE 2 ──
@@ -1137,7 +1172,7 @@ function buildPages() {
         <div class="cg">
           <div class="cb"><div class="ct">${prazoLabel}</div><div class="cv">${v(prazo,'—')}</div></div>
           <div class="cb"><div class="ct">Forma de Pagamento</div><div class="cv">${v(pag,'—')}</div></div>
-          <div class="cb"><div class="ct">Início Previsto</div><div class="cv">${inicio}<br><span style="font-size:9px;color:#999">${onbLabel}: ${esc(onb)||'—'} dias úteis</span></div></div>
+          <div class="cb"><div class="ct">Início Previsto</div><div class="cv">${inicio}<br><span style="font-size:9px;color:#999">${onbLabel}: ${onbStr}</span></div></div>
         </div>
       </div>
       <div class="ps">
@@ -1151,7 +1186,7 @@ function buildPages() {
         </div>
       </div>
     </div>
-    <div class="pft"><span>Nova Gestão de Performance | ${esc(ns)}</span><span>Página 2 de 3</span></div>
+    <div class="pft"><span>Nova Gestão de Performance | ${esc(ns)}</span><span>Página 2 de ${totalPags}</span></div>
   </div>`;
 
   // ── PAGE 3 ──
@@ -1202,11 +1237,11 @@ function buildPages() {
         </div>
       </div>
       <p style="font-size:7.5px;color:#aaa;text-align:center;margin-top:12px;line-height:1.6">
-        Proposta válida por ${esc(val)} dias a partir da emissão. Os valores são válidos até o vencimento.<br>
-        Os serviços serão formalizados em contrato após o aceite. Confidencial.
+        Proposta válida por ${esc(g('val'))||'—'} dias a partir da emissão — válida até o vencimento informado.<br>
+        Os serviços serão formalizados em contrato após o aceite. Documento confidencial.
       </p>
     </div>
-    <div class="pft"><span>Nova Gestão de Performance | ${esc(ns)} | Confidencial</span><span>Página 3 de 3</span></div>
+    <div class="pft"><span>Nova Gestão de Performance | ${esc(ns)} | Confidencial</span><span>Página 3 de ${totalPags}</span></div>
   </div>`;
 
   return p1 + p2 + p3;
@@ -1327,34 +1362,37 @@ async function exportPDF() {
     p.style.height          = '1122px';
   });
 
-  // 2. Esconde guias visuais durante a captura
+  // 2. Aguarda fontes carregarem — FIX crítico para caracteres acentuados
+  //    sem isso, html2canvas captura antes das fontes Google serem aplicadas
+  //    e renderiza fallback sem ã/é/ê/Á/etc. → "OVA GESTÃO", "atego+Vendas"
+  await document.fonts.ready;
+
+  // 3. Esconde guias visuais durante a captura
   target.querySelectorAll('.pg-guide,.pg-overflow').forEach(el => el.style.display = 'none');
 
   const num = g('num') || 'proposta';
   const rz  = g('rz')  || 'cliente';
   const filename = `NGP-2026-${num}_${rz.replace(/\s+/g,'_')}.pdf`;
 
-  // 3. Para cada .page, captura individualmente e monta o PDF — garante
-  //    que cada página HTML = exatamente 1 página A4 no PDF, sem overflow.
-  const pages = target.querySelectorAll('.page');
-  const { jsPDF } = window.jspdf || {};
-
-  // Fallback para html2pdf caso jsPDF não esteja disponível diretamente
   const opt = {
     margin: 0,
     filename,
-    image: { type: 'jpeg', quality: 0.98 },
+    // PNG preserva melhor os textos com acento que JPEG comprime/corrrompe
+    image: { type: 'png' },
     html2canvas: {
-      scale: 2,
+      scale: 3,           // escala alta = textos nítidos no PDF
       useCORS: true,
       allowTaint: true,
       logging: false,
       letterRendering: true,
       backgroundColor: '#ffffff',
-      windowWidth: 794,
+      windowWidth: 794,   // força largura A4 exata
+      // FIX: onclone garante que estilos inline e fontes sejam copiados
+      onclone: (doc) => {
+        doc.querySelectorAll('.pg-guide,.pg-overflow').forEach(el => el.style.display = 'none');
+      },
     },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true },
-    // Garante quebra ANTES de cada .page e NÃO deixa quebrar dentro
     pagebreak: { mode: 'css', before: '.page', avoid: '.page' },
   };
 
