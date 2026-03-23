@@ -130,39 +130,63 @@ textarea.svc-input{resize:none;min-height:52px;line-height:1.45}
 #ptop span{font-size:10px;color:#3a3a3a}
 
 /* ── PDF PAGES ── */
-/* A4 exacto: 210mm × 297mm @ 96 dpi = 794 × 1122 px */
+/* ══════════════════════════════════════════
+   A4 EXACTO: 210mm × 297mm @ 96dpi = 794×1122px
+   Layout: flex-column  →  header | corpo (flex:1) | footer
+   ══════════════════════════════════════════ */
 .page{
   width:794px;
   height:1122px;
   min-height:1122px;
   max-height:1122px;
   overflow:hidden;
-  background:#fff;color:#111;
+  background:#fff;
+  color:#111;
   box-shadow:0 12px 70px rgba(0,0,0,.65),0 2px 12px rgba(0,0,0,.3);
   position:relative;
   font-family:'Barlow',sans-serif;
   flex-shrink:0;
   page-break-after:always;
   box-sizing:border-box;
+  /* flex column: header fixo → corpo cresce → footer fixo */
+  display:flex;
+  flex-direction:column;
 }
 
-/* cover */
-.cover-head{background:linear-gradient(135deg,#1e1e1e 0%,#111 55%,#1a0707 100%);height:226px;position:relative;padding:32px 50px 0;overflow:hidden}
+/* ── COVER (página 1) ── */
+.cover-head{
+  background:linear-gradient(135deg,#1e1e1e 0%,#111 55%,#1a0707 100%);
+  height:310px;          /* ~28% do A4 — proporção equilibrada */
+  position:relative;
+  padding:42px 50px 0;
+  overflow:hidden;
+  flex-shrink:0;         /* nunca encolhe */
+}
 .cover-head::before{content:'';position:absolute;right:0;top:0;width:96px;height:100%;background:linear-gradient(to bottom,#1f0505 0%,#120202 100%)}
 .cover-head::after{content:'';position:absolute;right:92px;top:0;width:4px;height:100%;background:linear-gradient(to bottom,#e01535 0%,#C41230 50%,#8B0A1F 100%)}
 .cover-bar{position:absolute;bottom:0;left:0;right:0;height:5px;background:linear-gradient(90deg,#8B0A1F 0%,#C41230 35%,#e01535 65%,#C41230 100%)}
-.c-logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:52px;color:#fff;line-height:1;letter-spacing:-2px}
-.c-sub{font-size:10px;font-weight:600;letter-spacing:3px;color:rgba(255,255,255,.4);text-transform:uppercase;font-family:'Barlow',sans-serif;margin-top:3px}
-.c-tag{display:inline-block;background:linear-gradient(135deg,#C41230 0%,#9B0F26 100%);color:#fff;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:5px 14px;border-radius:3px;margin-top:18px;box-shadow:0 2px 8px rgba(196,18,48,.35)}
+.c-logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:64px;color:#fff;line-height:1;letter-spacing:-3px}
+.c-sub{font-size:10px;font-weight:600;letter-spacing:3px;color:rgba(255,255,255,.4);text-transform:uppercase;font-family:'Barlow',sans-serif;margin-top:4px}
+.c-tag{display:inline-block;background:linear-gradient(135deg,#C41230 0%,#9B0F26 100%);color:#fff;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:6px 16px;border-radius:3px;margin-top:22px;box-shadow:0 2px 8px rgba(196,18,48,.35)}
 .c-tag.unico{background:linear-gradient(135deg,#1a4fa0 0%,#0f3270 100%);box-shadow:0 2px 8px rgba(26,79,160,.35)}
-.c-meta{display:flex;gap:28px;margin-top:10px;flex-wrap:wrap}
+.c-meta{display:flex;gap:32px;margin-top:14px;flex-wrap:wrap}
 .c-mi .lbl{font-size:8px;color:rgba(255,255,255,.4);font-weight:600;letter-spacing:1px;text-transform:uppercase}
-.c-mi .val{font-size:12px;color:#fff;font-weight:700;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;margin-top:1px}
+.c-mi .val{font-size:13px;color:#fff;font-weight:700;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;margin-top:2px}
 
-/* page body */
-.pb{padding:22px 46px 46px}
-.ps{margin-bottom:20px}
-.ps-title{display:flex;align-items:center;gap:8px;margin-bottom:11px;padding-bottom:5px;border-bottom:2px solid #ececec}
+/* ── CORPO DA PÁGINA (flex:1 preenche TUDO entre header e footer) ── */
+.pb{
+  padding:20px 46px 18px;
+  flex:1;                /* ocupa todo espaço restante */
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between; /* distribui seções uniformemente */
+  overflow:hidden;
+}
+
+/* Seções — sem margin fixa; o space-between cuida do espaçamento */
+.ps{margin-bottom:0}
+
+.ps-title{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:5px;border-bottom:2px solid #ececec}
 .ps-bar{width:4px;height:16px;border-radius:2px;flex-shrink:0;background:linear-gradient(to bottom,#e01535 0%,#C41230 50%,#8B0A1F 100%)}
 .ps-title h3{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#111}
 .ps-title small{font-size:9px;color:#aaa;margin-left:auto}
@@ -260,8 +284,8 @@ textarea.svc-input{resize:none;min-height:52px;line-height:1.45}
 .nb p{font-size:10.5px;color:#222;line-height:1.6;white-space:pre-wrap}
 .nb p.em{color:#ccc;font-style:italic;font-size:9.5px}
 
-/* page header p2/p3 */
-.phd{background:linear-gradient(90deg,#1e1e1e 0%,#131313 100%);padding:15px 46px;display:flex;align-items:center;justify-content:space-between;border-bottom:0;position:relative}
+/* page header p2/p3 — flex-shrink:0 altura fixa */
+.phd{background:linear-gradient(90deg,#1e1e1e 0%,#131313 100%);padding:16px 46px;display:flex;align-items:center;justify-content:space-between;border-bottom:0;position:relative;flex-shrink:0}
 .phd::after{content:'';position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#8B0A1F 0%,#C41230 40%,#e01535 70%,#C41230 100%)}
 .phd-logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:24px;color:#C41230;letter-spacing:-1px}
 .phd-logo span{font-size:9px;font-weight:600;color:rgba(255,255,255,.28);letter-spacing:2px;font-family:'Barlow',sans-serif;text-transform:uppercase;margin-left:5px}
@@ -269,8 +293,8 @@ textarea.svc-input{resize:none;min-height:52px;line-height:1.45}
 .phd-r .t1{font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#555}
 .phd-r .t2{font-size:11px;font-weight:700;color:#ddd;font-family:'Barlow Condensed',sans-serif}
 
-/* page footer */
-.pft{background:linear-gradient(90deg,#1e1e1e 0%,#131313 100%);height:24px;display:flex;align-items:center;justify-content:space-between;padding:0 46px;font-size:7.5px;color:#555;letter-spacing:.5px;position:relative}
+/* page footer — sempre no fundo, flex-shrink:0 */
+.pft{background:linear-gradient(90deg,#1e1e1e 0%,#131313 100%);height:26px;display:flex;align-items:center;justify-content:space-between;padding:0 46px;font-size:7.5px;color:#555;letter-spacing:.5px;position:relative;flex-shrink:0}
 .pft::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#8B0A1F 0%,#C41230 40%,#e01535 70%,#C41230 100%)}
 
 /* context box */
@@ -1076,7 +1100,7 @@ function buildPages() {
           <div class="dc" style="border-color:#e0e0e0"><div class="dl">Investe em Tráfego</div><div class="dv">${v(traf,'—')}</div></div>
         </div>
       </div>
-      <div class="ps" style="margin-top:14px">
+      <div class="ps">
         <div class="ps-title"><div class="ps-bar"></div><h3>Diagnóstico Comercial</h3><small>O que a NGP mapeia antes de qualquer ação</small></div>
         ${[['Como o lead é recebido?',d1],['Tempo de primeiro contato',d2],['Taxa de conversão estimada',d3],['Usa CRM ou pipeline?',d4]]
           .map(([q,a])=>`<div class="di"><div class="di-dot"></div><div class="di-q">${q}</div><div class="di-a">${v(a,'—')}</div></div>`).join('')}
@@ -1108,7 +1132,7 @@ function buildPages() {
         </table>
         ${scopeDetailHtml}
       </div>
-      <div class="ps" style="margin-top:18px">
+      <div class="ps">
         <div class="ps-title"><div class="ps-bar"></div><h3>Condições Comerciais</h3></div>
         <div class="cg">
           <div class="cb"><div class="ct">${prazoLabel}</div><div class="cv">${v(prazo,'—')}</div></div>
@@ -1116,7 +1140,7 @@ function buildPages() {
           <div class="cb"><div class="ct">Início Previsto</div><div class="cv">${inicio}<br><span style="font-size:9px;color:#999">${onbLabel}: ${esc(onb)||'—'} dias úteis</span></div></div>
         </div>
       </div>
-      <div class="ps" style="margin-top:18px">
+      <div class="ps">
         <div class="ps-title"><div class="ps-bar"></div><h3>Por que a NGP?</h3><small>O que nos diferencia</small></div>
         <div class="dif-g">
           ${[['🎯','Diagnóstico Antes da Ação','Mapeamos todo o contexto do negócio antes de qualquer estratégia'],
@@ -1143,11 +1167,11 @@ function buildPages() {
         <div class="ps-title"><div class="ps-bar"></div><h3>Observações e Personalização</h3><small>Condições especiais desta proposta</small></div>
         <div class="nb">${obs ? `<p>${esc(obs).replace(/\n/g,'<br>')}</p>` : `<p class="em">Nenhuma observação registrada.</p>`}</div>
       </div>
-      <div class="ps" style="margin-top:18px">
+      <div class="ps">
         <div class="ps-title"><div class="ps-bar"></div><h3>Próximos Passos</h3><small>Como avançamos juntos</small></div>
         <div class="steps">${stepsHtml}</div>
       </div>
-      <div class="ps" style="margin-top:18px">
+      <div class="ps">
         <div class="ps-title"><div class="ps-bar"></div><h3>Aceite e Assinatura</h3></div>
         <div class="sg-g">
           <div class="sg-box cli">
